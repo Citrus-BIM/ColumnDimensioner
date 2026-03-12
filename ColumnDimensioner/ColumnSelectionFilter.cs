@@ -1,4 +1,4 @@
-﻿using Autodesk.Revit.DB;
+using Autodesk.Revit.DB;
 using Autodesk.Revit.UI.Selection;
 
 namespace ColumnDimensioner
@@ -9,7 +9,7 @@ namespace ColumnDimensioner
         {
             if (elem is FamilyInstance
                 && null != elem.Category
-                && elem.Category.Id.IntegerValue.Equals((int)BuiltInCategory.OST_StructuralColumns))
+                && elem.Category.Id == new ElementId(BuiltInCategory.OST_StructuralColumns))
             {
                 return true;
             }

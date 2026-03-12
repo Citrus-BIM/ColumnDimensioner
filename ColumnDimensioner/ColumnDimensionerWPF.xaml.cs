@@ -1,4 +1,4 @@
-п»їusing Autodesk.Revit.DB;
+using Autodesk.Revit.DB;
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
@@ -18,6 +18,7 @@ namespace ColumnDimensioner
         public bool IndentationSecondRowDimensionsIsChecked;
         public string IndentationSecondRowDimensions;
         ColumnDimensionerSettings ColumnDimensionerSettingsItem = null;
+
         public ColumnDimensionerWPF(List<DimensionType> dimensionTypesList)
         {
             ColumnDimensionerSettingsItem = new ColumnDimensionerSettings().GetSettings();
@@ -36,14 +37,8 @@ namespace ColumnDimensioner
                     radioButton_Selected.IsChecked = true;
                 }
 
-                if (dimensionTypesList.FirstOrDefault(dt => dt.Name == ColumnDimensionerSettingsItem.SelectedDimensionTypeName) != null)
-                {
-                    comboBox_DimensionType.SelectedItem = dimensionTypesList.FirstOrDefault(dt => dt.Name == ColumnDimensionerSettingsItem.SelectedDimensionTypeName);
-                }
-                else
-                {
-                    comboBox_DimensionType.SelectedItem = comboBox_DimensionType.Items[0];
-                }
+                DimensionType savedType = dimensionTypesList.FirstOrDefault(dt => dt.Name == ColumnDimensionerSettingsItem.SelectedDimensionTypeName);
+                comboBox_DimensionType.SelectedItem = savedType ?? comboBox_DimensionType.Items[0];
 
                 checkBox_IndentationFirstRowDimensions.IsChecked = ColumnDimensionerSettingsItem.IndentationFirstRowDimensionsIsChecked;
                 textBox_IndentationFirstRowDimensions.Text = ColumnDimensionerSettingsItem.IndentationFirstRowDimensions;
@@ -61,88 +56,93 @@ namespace ColumnDimensioner
                 textBox_IndentationSecondRowDimensions.Text = "1400";
             }
         }
+
         private void btn_Ok_Click(object sender, RoutedEventArgs e)
         {
-            SaveSettings();
-            this.DialogResult = true;
-            this.Close();
+            if (!SaveSettings())
+            {
+                return;
+            }
+
+            DialogResult = true;
+            Close();
         }
+
         private void ColumnDimensionerWPF_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.Key == Key.Enter || e.Key == Key.Space)
             {
-                SaveSettings();
-                this.DialogResult = true;
-                this.Close();
-            }
+                if (!SaveSettings())
+                {
+                    return;
+                }
 
+                DialogResult = true;
+                Close();
+            }
             else if (e.Key == Key.Escape)
             {
-                this.DialogResult = false;
-                this.Close();
+                DialogResult = false;
+                Close();
             }
         }
+
         private void btn_Cancel_Click(object sender, RoutedEventArgs e)
         {
-            this.DialogResult = false;
-            this.Close();
+            DialogResult = false;
+            Close();
         }
-        private void SaveSettings()
+
+        private bool SaveSettings()
         {
             ColumnDimensionerSettingsItem = new ColumnDimensionerSettings();
-            DimensionColumnsButtonName = (this.groupBox_DimensionColumns.Content as System.Windows.Controls.Grid)
-                .Children.OfType<RadioButton>()
-                .FirstOrDefault(rb => rb.IsChecked.Value == true)
-                .Name;
+            System.Windows.Controls.Grid dimensionColumnsGrid = groupBox_DimensionColumns.Content as System.Windows.Controls.Grid;
+            DimensionColumnsButtonName = dimensionColumnsGrid
+                ?.Children.OfType<RadioButton>()
+                .FirstOrDefault(rb => rb.IsChecked == true)?.Name ?? "radioButton_VisibleInView";
             ColumnDimensionerSettingsItem.DimensionColumnsButtonName = DimensionColumnsButtonName;
 
-            SelectedDimensionType = comboBox_DimensionType.SelectedItem as DimensionType;
+            SelectedDimensionType = comboBox_DimensionType.SelectedItem as DimensionType
+                ?? comboBox_DimensionType.Items.Cast<DimensionType>().FirstOrDefault();
+
+            if (SelectedDimensionType == null)
+            {
+                MessageBox.Show("Не удалось определить тип размера. Выберите тип и повторите.", "ColumnDimensioner", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return false;
+            }
+
             ColumnDimensionerSettingsItem.SelectedDimensionTypeName = SelectedDimensionType.Name;
 
-            IndentationFirstRowDimensionsIsChecked = (bool)checkBox_IndentationFirstRowDimensions.IsChecked;
+            IndentationFirstRowDimensionsIsChecked = checkBox_IndentationFirstRowDimensions.IsChecked == true;
             ColumnDimensionerSettingsItem.IndentationFirstRowDimensionsIsChecked = IndentationFirstRowDimensionsIsChecked;
 
             IndentationFirstRowDimensions = textBox_IndentationFirstRowDimensions.Text;
             ColumnDimensionerSettingsItem.IndentationFirstRowDimensions = IndentationFirstRowDimensions;
 
-            IndentationSecondRowDimensionsIsChecked = (bool)checkBox_IndentationSecondRowDimensions.IsChecked;
+            IndentationSecondRowDimensionsIsChecked = checkBox_IndentationSecondRowDimensions.IsChecked == true;
             ColumnDimensionerSettingsItem.IndentationSecondRowDimensionsIsChecked = IndentationSecondRowDimensionsIsChecked;
 
             IndentationSecondRowDimensions = textBox_IndentationSecondRowDimensions.Text;
             ColumnDimensionerSettingsItem.IndentationSecondRowDimensions = IndentationSecondRowDimensions;
             ColumnDimensionerSettingsItem.SaveSettings();
+
+            return true;
         }
 
         private void checkBox_IndentationFirstRowDimensions_Checked(object sender, RoutedEventArgs e)
         {
-            if ((bool)checkBox_IndentationFirstRowDimensions.IsChecked)
-            {
-                label_IndentationFirstRowDimensions.IsEnabled = true;
-                textBox_IndentationFirstRowDimensions.IsEnabled = true;
-                label_IndentationFirstRowDimensionsMM.IsEnabled = true;
-            }
-            else
-            {
-                label_IndentationFirstRowDimensions.IsEnabled = false;
-                textBox_IndentationFirstRowDimensions.IsEnabled = false;
-                label_IndentationFirstRowDimensionsMM.IsEnabled = false;
-            }
+            bool isEnabled = checkBox_IndentationFirstRowDimensions.IsChecked == true;
+            label_IndentationFirstRowDimensions.IsEnabled = isEnabled;
+            textBox_IndentationFirstRowDimensions.IsEnabled = isEnabled;
+            label_IndentationFirstRowDimensionsMM.IsEnabled = isEnabled;
         }
 
         private void checkBox_IndentationSecondRowDimensions_Checked(object sender, RoutedEventArgs e)
         {
-            if ((bool)checkBox_IndentationSecondRowDimensions.IsChecked)
-            {
-                label_IndentationSecondRowDimensions.IsEnabled = true;
-                textBox_IndentationSecondRowDimensions.IsEnabled = true;
-                label_IndentationSecondRowDimensionsMM.IsEnabled = true;
-            }
-            else
-            {
-                label_IndentationSecondRowDimensions.IsEnabled = false;
-                textBox_IndentationSecondRowDimensions.IsEnabled = false;
-                label_IndentationSecondRowDimensionsMM.IsEnabled = false;
-            }
+            bool isEnabled = checkBox_IndentationSecondRowDimensions.IsChecked == true;
+            label_IndentationSecondRowDimensions.IsEnabled = isEnabled;
+            textBox_IndentationSecondRowDimensions.IsEnabled = isEnabled;
+            label_IndentationSecondRowDimensionsMM.IsEnabled = isEnabled;
         }
     }
 }

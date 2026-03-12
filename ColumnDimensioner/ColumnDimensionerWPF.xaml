@@ -6,9 +6,16 @@
              xmlns:local="clr-namespace:ColumnDimensioner"
              mc:Ignorable="d" 
              Title="Образмерить колонны"
-             WindowStyle="SingleBorderWindow" ResizeMode="NoResize" Icon="Resources/citrus.ico" WindowStartupLocation="CenterScreen"
-             Height="280" Width="350" MinHeight="280" MinWidth="350" MaxHeight="280" MaxWidth="350"
+             WindowStyle="SingleBorderWindow" ResizeMode="NoResize" Icon="/ColumnDimensioner;component/Resources/citrus.ico" WindowStartupLocation="CenterScreen"
+             Height="310" Width="350" MinHeight="310" MinWidth="350" MaxHeight="310" MaxWidth="350"
              KeyDown="ColumnDimensionerWPF_KeyDown">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/ColumnDimensioner;component/CitrusTheme/CitrusTheme.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
     <Grid>
         <GroupBox x:Name="groupBox_DimensionColumns" Grid.Column="1" Header="Образмерить колонны:" Height="60" Margin="10,10,10,0" Grid.Row="1" VerticalAlignment="Top" BorderBrush="#FFABADB3">
             <Grid>
@@ -17,25 +24,29 @@
                     <ColumnDefinition Width="175*"/>
                 </Grid.ColumnDefinitions>
                 <RadioButton x:Name="radioButton_VisibleInView" Content="Видимые на виде" HorizontalAlignment="Center" VerticalAlignment="Center" IsChecked="True" Height="25" Width="120" VerticalContentAlignment="Center" Grid.Column="0" />
-                <RadioButton x:Name="radioButton_Selected" Content="Выбранные" VerticalAlignment="Center" HorizontalAlignment="Center" Grid.Column="1" Width="120" Height="25" VerticalContentAlignment="Center" IsChecked="True"/>
+                <RadioButton x:Name="radioButton_Selected" Content="Выбранные" VerticalAlignment="Center" HorizontalAlignment="Center" Grid.Column="1" Width="120" Height="25" VerticalContentAlignment="Center"/>
             </Grid>
         </GroupBox>
 
         <Label x:Name="label_DimensionType" Content="Выберите тип размера:" Margin="10,75,10,0" VerticalAlignment="Top"/>
-        <ComboBox x:Name="comboBox_DimensionType" Margin="10,100,10,0" VerticalAlignment="Top" Height="26" VerticalContentAlignment="Center"/>
+        <ComboBox x:Name="comboBox_DimensionType" Margin="10,100,10,0" VerticalAlignment="Top" Height="32" VerticalContentAlignment="Center"/>
 
-        <Label x:Name="label_IndentationFirstRowDimensions" Content="Отступ первого ряда размеров" Margin="30,135,0,0" VerticalAlignment="Top" HorizontalAlignment="Left" Height="26"/>
-        <TextBox x:Name="textBox_IndentationFirstRowDimensions" HorizontalAlignment="Right" Height="26" Margin="0,135,45,0" TextWrapping="Wrap" Text="700" VerticalAlignment="Top" Width="60" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
-        <Label x:Name="label_IndentationFirstRowDimensionsMM" Content="мм" HorizontalAlignment="Right" Margin="0,135,10,0" VerticalAlignment="Top" Width="37" Height="26" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
-        <CheckBox x:Name="checkBox_IndentationFirstRowDimensions" Content="" HorizontalAlignment="Left" Margin="10,135,0,0" VerticalAlignment="Top" Height="26" VerticalContentAlignment="Center" Checked="checkBox_IndentationFirstRowDimensions_Checked" Unchecked="checkBox_IndentationFirstRowDimensions_Checked" IsChecked="True"/>
+        <Label x:Name="label_IndentationFirstRowDimensions" Content="Отступ первого ряда размеров" Margin="30,140,0,0" VerticalAlignment="Top" HorizontalAlignment="Left" Height="32" VerticalContentAlignment="Center"/>
+        <TextBox x:Name="textBox_IndentationFirstRowDimensions" HorizontalAlignment="Right" Height="32" Margin="0,140,45,0" TextWrapping="Wrap" Text="700" VerticalAlignment="Top" Width="60" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
+        <Label x:Name="label_IndentationFirstRowDimensionsMM" Content="мм" HorizontalAlignment="Right" Margin="0,140,10,0" VerticalAlignment="Top" Width="37" Height="32" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
+        <CheckBox x:Name="checkBox_IndentationFirstRowDimensions" Content="" HorizontalAlignment="Left" Margin="10,140,0,0" VerticalAlignment="Top" Height="32" VerticalContentAlignment="Center" Checked="checkBox_IndentationFirstRowDimensions_Checked" Unchecked="checkBox_IndentationFirstRowDimensions_Checked" IsChecked="True"/>
 
-        <Label x:Name="label_IndentationSecondRowDimensions" Content="Отступ второго ряда размеров" Margin="30,170,0,0" VerticalAlignment="Top" HorizontalAlignment="Left" Height="26"/>
-        <TextBox x:Name="textBox_IndentationSecondRowDimensions" HorizontalAlignment="Right" Height="26" Margin="0,170,45,0" TextWrapping="Wrap" Text="1400" VerticalAlignment="Top" Width="60" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
-        <Label x:Name="label_IndentationSecondRowDimensionsMM" Content="мм" HorizontalAlignment="Right" Margin="0,170,10,0" VerticalAlignment="Top" Width="37" Height="26" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
-        <CheckBox x:Name="checkBox_IndentationSecondRowDimensions" Content="" HorizontalAlignment="Left" Margin="10,170,0,0" VerticalAlignment="Top" Height="26" VerticalContentAlignment="Center" Checked="checkBox_IndentationSecondRowDimensions_Checked" Unchecked="checkBox_IndentationSecondRowDimensions_Checked" IsChecked="True"/>
-        
-        <Button x:Name="btn_Ok" Content="Ок" HorizontalAlignment="Right" Margin="0,0,125,10" VerticalAlignment="Bottom" Width="100" Height="25" Click="btn_Ok_Click"/>
-        <Button x:Name="btn_Cancel" Content="Отмена" HorizontalAlignment="Right" Margin="0,0,10,10" VerticalAlignment="Bottom" Width="100" Height="25" Click="btn_Cancel_Click" Grid.Column="1" Grid.Row="1"/>
-        
+        <Label x:Name="label_IndentationSecondRowDimensions" Content="Отступ второго ряда размеров" Margin="30,180,0,0" VerticalAlignment="Top" HorizontalAlignment="Left" Height="32" VerticalContentAlignment="Center"/>
+        <TextBox x:Name="textBox_IndentationSecondRowDimensions" HorizontalAlignment="Right" Height="32" Margin="0,180,45,0" TextWrapping="Wrap" Text="1400" VerticalAlignment="Top" Width="60" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
+        <Label x:Name="label_IndentationSecondRowDimensionsMM" Content="мм" HorizontalAlignment="Right" Margin="0,180,10,0" VerticalAlignment="Top" Width="37" Height="32" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
+        <CheckBox x:Name="checkBox_IndentationSecondRowDimensions" Content="" HorizontalAlignment="Left" Margin="10,180,0,0" VerticalAlignment="Top" Height="32" VerticalContentAlignment="Center" Checked="checkBox_IndentationSecondRowDimensions_Checked" Unchecked="checkBox_IndentationSecondRowDimensions_Checked" IsChecked="True"/>
+
+        <Button x:Name="btn_Ok" Content="Ок" HorizontalAlignment="Right" Margin="0,0,125,10" VerticalAlignment="Bottom" Width="100" Height="32" Click="btn_Ok_Click"/>
+        <Button x:Name="btn_Cancel" Content="Отмена" HorizontalAlignment="Right" Margin="0,0,10,10" VerticalAlignment="Bottom" Width="100" Height="32" Click="btn_Cancel_Click" Grid.Column="1" Grid.Row="1"/>
+
     </Grid>
 </Window>
+
+
+
+
