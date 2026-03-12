@@ -7,7 +7,6 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace ColumnDimensioner
@@ -19,18 +18,14 @@ namespace ColumnDimensioner
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            ExecutionLogger logger = ExecutionLogger.Create();
-            logger.Info("Запуск команды ColumnDimensioner");
-
             try
             {
                 try
                 {
                     _ = GetPluginStartInfo();
                 }
-                catch (Exception ex)
+                catch
                 {
-                    logger.Error("Не удалось отправить телеметрию запуска", ex);
                 }
 
                 UIDocument uiDoc = commandData.Application.ActiveUIDocument;
@@ -38,11 +33,8 @@ namespace ColumnDimensioner
                 Selection sel = uiDoc.Selection;
                 View activeView = doc.ActiveView;
 
-                logger.Info($"Документ: {doc.Title}; Вид: {activeView?.Name}; Тип: {activeView?.ViewType}");
-
                 if (activeView.ViewType != ViewType.FloorPlan && activeView.ViewType != ViewType.EngineeringPlan)
                 {
-                    logger.Info("Отмена: неподдерживаемый тип вида.");
                     TaskDialog.Show("Revit", "Перед запуском плагина откройте \"План этажа\" или \"План несущих конструкций\"");
                     return Result.Cancelled;
                 }
@@ -54,8 +46,6 @@ namespace ColumnDimensioner
                     .Where(dt => dt.Name != "Стиль линейных размеров")
                     .OrderBy(dt => dt.Name, new AlphanumComparatorFastString())
                     .ToList();
-
-                logger.Info($"Найдено типов линейных размеров: {dimensionTypesList.Count}");
                 if (dimensionTypesList.Count == 0)
                 {
                     TaskDialog.Show("Revit", "Не удалось найти ни одного типа для линейных размеров!");
@@ -64,14 +54,12 @@ namespace ColumnDimensioner
 
                 ColumnDimensionerWPF window = new ColumnDimensionerWPF(dimensionTypesList);
                 window.ShowDialog();
-                logger.Info($"Результат окна настроек: {window.DialogResult}");
                 if (window.DialogResult != true)
                 {
                     return Result.Cancelled;
                 }
 
-                List<FamilyInstance> columnsList = GetColumns(doc, sel, activeView, window, logger);
-                logger.Info($"Колонн к обработке: {columnsList.Count}");
+                List<FamilyInstance> columnsList = GetColumns(doc, sel, activeView, window);
                 if (columnsList.Count == 0)
                 {
                     TaskDialog.Show("Revit", "Не выбрано ни одной колонны!");
@@ -82,18 +70,14 @@ namespace ColumnDimensioner
                 if (dimensionType == null)
                 {
                     TaskDialog.Show("Revit", "Не удалось определить тип размера.");
-                    logger.Info("Отмена: тип размера не выбран.");
                     return Result.Cancelled;
                 }
-
-                logger.Info($"Выбран тип размера: {dimensionType.Name} ({IdToText(dimensionType.Id)})");
 
                 bool firstRowEnabled = window.IndentationFirstRowDimensionsIsChecked;
                 double firstRowOffset = 0.0;
                 if (firstRowEnabled &&
                     !TryParseOffsetInMillimeters(window.IndentationFirstRowDimensions, out firstRowOffset))
                 {
-                    logger.Info($"Ошибка парсинга отступа первого ряда: '{window.IndentationFirstRowDimensions}'");
                     TaskDialog.Show("Revit", "Некорректный отступ первого ряда размеров. Введите число в мм.");
                     return Result.Cancelled;
                 }
@@ -103,21 +87,17 @@ namespace ColumnDimensioner
                 if (secondRowEnabled &&
                     !TryParseOffsetInMillimeters(window.IndentationSecondRowDimensions, out secondRowOffset))
                 {
-                    logger.Info($"Ошибка парсинга отступа второго ряда: '{window.IndentationSecondRowDimensions}'");
                     TaskDialog.Show("Revit", "Некорректный отступ второго ряда размеров. Введите число в мм.");
                     return Result.Cancelled;
                 }
 
                 int scale = GetViewScale(activeView);
-                logger.Info($"Масштаб вида: 1:{scale}");
 
                 List<Grid> gridsList = new FilteredElementCollector(doc, activeView.Id)
                     .OfCategory(BuiltInCategory.OST_Grids)
                     .WhereElementIsNotElementType()
                     .Cast<Grid>()
                     .ToList();
-
-                logger.Info($"Найдено осей на виде: {gridsList.Count}");
 
                 Options opt = new Options
                 {
@@ -129,19 +109,15 @@ namespace ColumnDimensioner
                 using (TransactionGroup tg = new TransactionGroup(doc, "Образмерить колонны"))
                 {
                     tg.Start();
-                    logger.Info("TransactionGroup стартовал.");
 
                     TextNoteType tempTextType;
                     bool createdTempTextType;
                     if (!TryGetOrCreateTempTextType(doc, dimensionType, out tempTextType, out createdTempTextType))
                     {
-                        logger.Info("Не удалось создать временный тип текста.");
                         tg.RollBack();
                         TaskDialog.Show("Revit", "Не удалось создать временный тип текста.");
                         return Result.Failed;
                     }
-
-                    logger.Info($"Временный тип текста: {tempTextType?.Name} ({IdToText(tempTextType?.Id)}), создан={createdTempTextType}");
 
                     List<string> errors = new List<string>();
 
@@ -162,13 +138,11 @@ namespace ColumnDimensioner
                                 firstRowOffset,
                                 secondRowEnabled,
                                 secondRowOffset,
-                                errors,
-                                logger);
+                                errors);
                         }
                         catch (Exception ex)
                         {
                             string colId = IdToText(column?.Id);
-                            logger.Error($"Критическая ошибка в обработке колонны {colId}", ex);
                             errors.Add($"Колонна {colId}: {ex.Message}");
                         }
                     }
@@ -180,13 +154,11 @@ namespace ColumnDimensioner
                         {
                             ElementId id = tempTextType.Id;
                             doc.Delete(id);
-                            logger.Info($"Удален временный тип текста: {IdToText(id)}");
                         }
                         t.Commit();
                     }
 
                     tg.Assimilate();
-                    logger.Info($"TransactionGroup подтвержден. Ошибок по колоннам: {errors.Count}");
 
                     if (errors.Count > 0)
                     {
@@ -201,15 +173,13 @@ namespace ColumnDimensioner
                     }
                 }
 
-                logger.Info("Команда завершена успешно.");
-                TaskDialog.Show("ColumnDimensioner", $"Обработка завершена. Лог: {logger.FilePath}");
+                TaskDialog.Show("ColumnDimensioner", "Обработка завершена.");
                 return Result.Succeeded;
             }
             catch (Exception ex)
             {
-                logger.Error("Фатальная ошибка команды", ex);
                 message = ex.Message;
-                TaskDialog.Show("ColumnDimensioner", $"Ошибка выполнения внешней команды. Лог: {logger.FilePath}");
+                TaskDialog.Show("ColumnDimensioner", "Ошибка выполнения внешней команды.");
                 return Result.Failed;
             }
         }
@@ -226,17 +196,14 @@ namespace ColumnDimensioner
             double firstRowOffset,
             bool secondRowEnabled,
             double secondRowOffset,
-            List<string> errors,
-            ExecutionLogger logger)
+            List<string> errors)
         {
             if (column == null || !TryGetColumnLocationPoint(column, out XYZ columnLocationPoint))
             {
-                logger?.Info($"Пропуск колонны {IdToText(column?.Id)}: не удалось определить точку положения.");
                 return;
             }
 
             string columnId = IdToText(column.Id);
-            logger?.Info($"Старт обработки колонны {columnId}");
 
             XYZ hand = NormalizeOrNull(column.HandOrientation);
             XYZ facing = NormalizeOrNull(column.FacingOrientation);
@@ -244,18 +211,14 @@ namespace ColumnDimensioner
             if (hand == null || facing == null)
             {
                 errors.Add($"Колонна {columnId}: не удалось получить HandOrientation/FacingOrientation.");
-                logger?.Info($"Колонна {columnId}: невалидные HandOrientation/FacingOrientation.");
                 return;
             }
 
             if (!TryGetColumnDimensions(column, opt, hand, facing, out double width, out double height))
             {
                 errors.Add($"Колонна {columnId}: не удалось определить габариты.");
-                logger?.Info($"Колонна {columnId}: не удалось определить габариты.");
                 return;
             }
-
-            logger?.Info($"Колонна {columnId}: width={width:F6}ft, height={height:F6}ft");
 
             ProcessColumnAxis(
                 doc,
@@ -271,7 +234,6 @@ namespace ColumnDimensioner
                 secondRowEnabled,
                 secondRowOffset,
                 errors,
-                logger,
                 columnId,
                 columnLocationPoint,
                 measureAxis: hand,
@@ -299,7 +261,6 @@ namespace ColumnDimensioner
                 secondRowEnabled,
                 secondRowOffset,
                 errors,
-                logger,
                 columnId,
                 columnLocationPoint,
                 measureAxis: facing,
@@ -312,8 +273,6 @@ namespace ColumnDimensioner
                 mainTransactionName: "Размер вдоль FacingOrientation",
                 secondaryTransactionName: "Размер вдоль FacingOrientation второстепенный",
                 noGridMessage: "для FacingOrientation не найдена подходящая ось.");
-
-            logger?.Info($"Колонна {columnId}: обработка завершена.");
         }
 
 
@@ -331,7 +290,6 @@ namespace ColumnDimensioner
             bool secondRowEnabled,
             double secondRowOffset,
             List<string> errors,
-            ExecutionLogger logger,
             string columnId,
             XYZ columnLocationPoint,
             XYZ measureAxis,
@@ -357,15 +315,11 @@ namespace ColumnDimensioner
                 NormalizeOrNull(column.HandOrientation),
                 NormalizeOrNull(column.FacingOrientation),
                 out Reference ref1,
-                out Reference ref2,
-                logger,
-                columnId))
+                out Reference ref2))
             {
                 columnRefs.Append(ref1);
                 columnRefs.Append(ref2);
             }
-
-            logger?.Info($"Колонна {columnId}: граней dir={dirIndex} с Reference = {columnRefs.Size}");
 
             if (columnRefs.Size < 2)
             {
@@ -396,7 +350,7 @@ namespace ColumnDimensioner
                     }
                     catch (Exception ex)
                     {
-                        logger?.Error($"Колонна {columnId}: ошибка создания основного размера dir={dirIndex}", ex);
+                        errors.Add($"Колонна {columnId}: ошибка создания основного размера dir={dirIndex}. {ex.Message}");
                         t.RollBack();
                     }
                 }
@@ -407,7 +361,6 @@ namespace ColumnDimensioner
                 }
                 else
                 {
-                    logger?.Info($"Колонна {columnId}: создан основной размер dir={dirIndex} {IdToText(mainDimension.Id)}");
                     AdjustSingleDimensionText(
                         doc,
                         activeView.Id,
@@ -433,7 +386,6 @@ namespace ColumnDimensioner
                 out XYZ projectedPointOnGrid,
                 out double signedDistance))
             {
-                logger?.Info($"Колонна {columnId}: {noGridMessage}");
                 return;
             }
 
@@ -478,12 +430,12 @@ namespace ColumnDimensioner
                         + firstRowOffset * offsetAxis;
 
                     ElementTransformUtils.MoveElement(doc, secondDimension.Id, translation);
-                    TryLockDimension(secondDimension, logger, columnId, dirIndex);
+                    TryLockDimension(secondDimension);
                     t.Commit();
                 }
                 catch (Exception ex)
                 {
-                    logger?.Error($"Колонна {columnId}: ошибка создания второстепенного размера dir={dirIndex}", ex);
+                    errors.Add($"Колонна {columnId}: ошибка создания второстепенного размера dir={dirIndex}. {ex.Message}");
                     t.RollBack();
                 }
             }
@@ -494,7 +446,6 @@ namespace ColumnDimensioner
             }
             else
             {
-                logger?.Info($"Колонна {columnId}: создан второстепенный размер dir={dirIndex} {IdToText(secondDimension.Id)}, distToGrid={signedDistance:F6}ft");
                 MoveSegmentTexts(
                     doc,
                     activeView.Id,
@@ -740,9 +691,7 @@ namespace ColumnDimensioner
             XYZ handOrientation,
             XYZ facingOrientation,
             out Reference ref1,
-            out Reference ref2,
-            ExecutionLogger logger,
-            string columnId)
+            out Reference ref2)
         {
             ref1 = null;
             ref2 = null;
@@ -751,7 +700,6 @@ namespace ColumnDimensioner
             axis = NormalizeOrNull(axis);
             if (axis == null)
             {
-                logger?.Info($"Колонна {columnId}: ось dir={dir} невалидна для подбора references.");
                 return false;
             }
 
@@ -761,7 +709,6 @@ namespace ColumnDimensioner
                 {
                     IList<Reference> leftRefs = column.GetReferences(FamilyInstanceReferenceType.Left);
                     IList<Reference> rightRefs = column.GetReferences(FamilyInstanceReferenceType.Right);
-                    logger?.Info($"Колонна {columnId}: named refs Left={leftRefs?.Count ?? 0}, Right={rightRefs?.Count ?? 0}");
 
                     if (leftRefs != null && leftRefs.Count > 0 && rightRefs != null && rightRefs.Count > 0)
                     {
@@ -777,7 +724,6 @@ namespace ColumnDimensioner
                 {
                     IList<Reference> frontRefs = column.GetReferences(FamilyInstanceReferenceType.Front);
                     IList<Reference> backRefs = column.GetReferences(FamilyInstanceReferenceType.Back);
-                    logger?.Info($"Колонна {columnId}: named refs Front={frontRefs?.Count ?? 0}, Back={backRefs?.Count ?? 0}");
 
                     if (frontRefs != null && frontRefs.Count > 0 && backRefs != null && backRefs.Count > 0)
                     {
@@ -797,7 +743,6 @@ namespace ColumnDimensioner
             try
             {
                 IList<Reference> strongRefs = column.GetReferences(FamilyInstanceReferenceType.StrongReference);
-                logger?.Info($"Колонна {columnId}: strong refs count = {strongRefs?.Count ?? 0}");
                 if (TryGetOppositeReferencesFromRefSet(column, strongRefs, axis, out ref1, out ref2))
                 {
                     return true;
@@ -810,7 +755,6 @@ namespace ColumnDimensioner
             try
             {
                 IList<Reference> weakRefs = column.GetReferences(FamilyInstanceReferenceType.WeakReference);
-                logger?.Info($"Колонна {columnId}: weak refs count = {weakRefs?.Count ?? 0}");
                 if (TryGetOppositeReferencesFromRefSet(column, weakRefs, axis, out ref1, out ref2))
                 {
                     return true;
@@ -1097,10 +1041,7 @@ namespace ColumnDimensioner
         }
 
         private static void TryLockDimension(
-            Dimension dimension,
-            ExecutionLogger? logger,
-            string columnId,
-            int dirIndex)
+            Dimension dimension)
         {
             if (dimension == null)
             {
@@ -1113,14 +1054,9 @@ namespace ColumnDimensioner
                 {
                     dimension.IsLocked = true;
                 }
-
-                logger?.Info($"Колонна {columnId}: второстепенный размер dir={dirIndex} зафиксирован.");
             }
-            catch (Exception ex)
+            catch
             {
-                logger?.Info(
-                    $"Колонна {columnId}: не удалось зафиксировать второстепенный размер dir={dirIndex}. " +
-                    $"Причина: {ex.Message}");
             }
         }
 
@@ -1590,8 +1526,7 @@ namespace ColumnDimensioner
             Document doc,
             Selection sel,
             View activeView,
-            ColumnDimensionerWPF window,
-            ExecutionLogger logger)
+            ColumnDimensionerWPF window)
         {
             if (window.DimensionColumnsButtonName == "radioButton_VisibleInView")
             {
@@ -1600,15 +1535,12 @@ namespace ColumnDimensioner
                     .WhereElementIsNotElementType()
                     .Cast<FamilyInstance>()
                     .ToList();
-
-                logger?.Info($"Режим выбора: видимые на виде, найдено {visibleColumns.Count} колонн.");
                 return visibleColumns;
             }
 
-            List<FamilyInstance> selectedColumns = GetColumnsFromCurrentSelection(doc, sel, logger);
+            List<FamilyInstance> selectedColumns = GetColumnsFromCurrentSelection(doc, sel);
             if (selectedColumns.Count > 0)
             {
-                logger?.Info($"Режим выбора: из текущего выделения, найдено {selectedColumns.Count} колонн.");
                 return selectedColumns;
             }
 
@@ -1621,7 +1553,6 @@ namespace ColumnDimensioner
             }
             catch (Autodesk.Revit.Exceptions.OperationCanceledException)
             {
-                logger?.Info("Пользователь отменил ручной выбор колонн.");
                 return new List<FamilyInstance>();
             }
 
@@ -1629,16 +1560,13 @@ namespace ColumnDimensioner
                 .Select(r => doc.GetElement(r))
                 .OfType<FamilyInstance>()
                 .ToList();
-
-            logger?.Info($"Режим выбора: ручной выбор, выбрано {pickedColumns.Count} колонн.");
             return pickedColumns;
         }
 
-        private static List<FamilyInstance> GetColumnsFromCurrentSelection(Document doc, Selection sel, ExecutionLogger logger)
+        private static List<FamilyInstance> GetColumnsFromCurrentSelection(Document doc, Selection sel)
         {
             ICollection<ElementId> selectedIds = sel.GetElementIds();
             List<FamilyInstance> result = new List<FamilyInstance>();
-            logger?.Info($"Текущее выделение содержит {selectedIds.Count} элементов.");
 
             foreach (ElementId id in selectedIds)
             {
@@ -1649,61 +1577,12 @@ namespace ColumnDimensioner
                     result.Add(fi);
                 }
             }
-
-            logger?.Info($"В текущем выделении распознано {result.Count} колонн.");
             return result;
         }
 
         private static string IdToText(ElementId id)
         {
             return id?.ToString() ?? "<null>";
-        }
-
-        private sealed class ExecutionLogger
-        {
-            private readonly object _sync = new object();
-
-            public string FilePath { get; }
-
-            private ExecutionLogger(string filePath)
-            {
-                FilePath = filePath;
-            }
-
-            public static ExecutionLogger Create()
-            {
-                string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
-                string filePath = Path.Combine(desktopPath, $"ColumnDimensioner_{DateTime.Now:yyyyMMdd_HHmmss_fff}.log");
-
-                ExecutionLogger logger = new ExecutionLogger(filePath);
-                logger.Info("Создан файл лога.");
-                return logger;
-            }
-
-            public void Info(string message)
-            {
-                Write("INFO", message);
-            }
-
-            public void Error(string context, Exception ex)
-            {
-                if (ex == null)
-                {
-                    Write("ERROR", context);
-                    return;
-                }
-
-                Write("ERROR", $"{context}{Environment.NewLine}{ex}");
-            }
-
-            private void Write(string level, string message)
-            {
-                lock (_sync)
-                {
-                    string line = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [{level}] {message}{Environment.NewLine}";
-                    File.AppendAllText(FilePath, line, Encoding.UTF8);
-                }
-            }
         }
 
         private static async Task GetPluginStartInfo()
