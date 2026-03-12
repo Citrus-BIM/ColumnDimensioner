@@ -316,6 +316,7 @@ namespace ColumnDimensioner
             logger?.Info($"Колонна {columnId}: обработка завершена.");
         }
 
+
         private static void ProcessColumnAxis(
             Document doc,
             View activeView,
